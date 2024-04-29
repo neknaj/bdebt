@@ -220,19 +220,29 @@ namespace PriBdebtTree {
             while (seek() == ' ' || seek() == '\n') { get(); }
             return;
         }
+        private bool isBlank() {
+            return (seek() == ' ' || seek() == '\n');
+        }
         private IntToken number() {
             string result = "";
-            while (seek() != ' ') {
+            while (!isBlank() && seek() != ')' && seek() != ';') {
                 result += get();
             }
             return new IntToken(result);
+        }
+        private IdentToken ident() {
+            string result = "";
+            while (!isBlank() && seek() != ')' && seek() != ';') {
+                result += get();
+            }
+            return new IdentToken(result);
         }
         private Node token() {
             int Number;
             return seek() switch
             {
                 var d when int.TryParse(d.ToString(), out Number) => number(),
-                _ => new IdentToken(get().ToString())
+                _ => ident()
             };
         }
         private Expr paren() {

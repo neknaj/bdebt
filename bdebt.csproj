@@ -6,7 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>12.0</LangVersion> 
-    <SelfContained>true</SelfContained>
+    <SelfContained>true</SelfContained> 
+    <Title>Bdebt</Title> 
+    <Authors>bem130</Authors> 
+    <StartupObject>Program</StartupObject>
   </PropertyGroup>
 
 </Project>

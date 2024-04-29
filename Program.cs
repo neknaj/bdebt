@@ -26,6 +26,7 @@ class Program {
         string? line;
         int num = 0;
         while ((line = data.ReadLine()) != null) {
+            if (line == "#EOINPUT") { break; }
             if (num >= lines.Length) {
                 Array.Resize(ref lines, lines.Length * 2);
             }

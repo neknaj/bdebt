@@ -15,12 +15,31 @@ using System.Web;
 public static class BdebtCode {
     public static string[] inputCode = [];
     public static syntaxval[][] syntaxdata = [];
-    public enum syntaxval {
+    public enum syntaxval: ushort {
         clear,
         comment,
         note,
         number,
         ident,
+    }
+}
+public static class BdebtError {
+    public static List<Error> errors = new List<Error>();
+    public struct Error {
+        public (int, int) pos { get; }
+        public int len { get; }
+        public ErrorType type { get; }
+        public string message { get; }
+        public Error((int, int) position, int length, ErrorType errortype, string message) {
+            pos = position;
+            len = length;
+            type = errortype;
+            this.message = message;
+        }
+    }
+    public enum ErrorType {
+        syntaxError,
+        typeError,
     }
 }
 public class BdebtTools {
@@ -38,34 +57,53 @@ public class BdebtTools {
         PriBdebtTree.RootNode tree = new PriBdebtTree.RootNode(_tree);
         Console.WriteLine();
         Console.WriteLine("[source]");
-        showInput();
+        showInput(linenumber: true);
+        showErrors();
+        if (BdebtError.errors.Count > 0) {
+            return;
+        }
         Console.WriteLine();
         Console.WriteLine("[parse]");
         //Console.WriteLine(tree.ToString(9));
         tree.ConsoleWrite(9);
         return;
     }
-    static bool showInput(int start = 0, int? end = null) {
+    static void showErrors() {
+        Console.WriteLine();
+        for (int mc = 0; mc < BdebtError.errors.Count; mc++) {
+            BdebtError.Error err = BdebtError.errors[mc];
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[{err.type}] {err.message}");
+            Console.ResetColor();
+            Console.Write($"{new String(' ', err.type.ToString().Length)}   [{err.pos.Item1}:{err.pos.Item2}]  ");
+            showInput(linenumber: false, start: err.pos.Item1 - 1, end: err.pos.Item1, err.pos.Item2, err.len);
+            Console.WriteLine();
+        }
+    }
+    static bool showInput(bool linenumber = false, int start = 0, int? end = null, int errC = 0, int errlen = 0) {
         if (start < 0) { Console.Error.WriteLine("showInput Argument 'start' is out of range"); start = 0; }
         int num = start;
         if (end == null) { end = inputCode.Length; }
         if (end > inputCode.Length) { Console.Error.WriteLine("showInput Argument 'end' is out of range"); end = inputCode.Length; }
         if (end < start) { Console.Error.WriteLine("showInput range from Arguments 'start', 'end' is invalid"); return false; }
         while (num < end) {
-            Console.Write($"{num + 1,4} :  ");
+            if (linenumber) {
+                Console.Write($"{num + 1,4} :  ");
+            }
             for (int i = 0; i < inputCode[num].Length; i++) {
                 var color = BdebtCode.syntaxdata[num][i];
                 Console.ForegroundColor = color switch
                 {
                     BdebtCode.syntaxval.number => ConsoleColor.Green,
                     BdebtCode.syntaxval.ident => ConsoleColor.Cyan,
-                    BdebtCode.syntaxval.comment => ConsoleColor.DarkGreen,
-                    BdebtCode.syntaxval.note => ConsoleColor.White,
+                    BdebtCode.syntaxval.comment => ConsoleColor.DarkBlue,
+                    BdebtCode.syntaxval.note => ConsoleColor.Gray,
                     _ => ConsoleColor.White,
                 };
-                Console.BackgroundColor = color switch
+                Console.BackgroundColor = (color, num, i) switch
                 {
-                    BdebtCode.syntaxval.note => ConsoleColor.DarkGray,
+                    (BdebtCode.syntaxval.note, _, _) => ConsoleColor.DarkBlue,
+                    var (col,l,c) when l==start && errC<i+2 && i+1<errC+errlen => ConsoleColor.DarkRed,
                     _ => ConsoleColor.Black,
                 };
                 Console.Write(inputCode[num][i]);
@@ -312,11 +350,21 @@ namespace PriBdebtTree {
         private bool isBlank() {
             return (seek() == ' ' || seek() == '\n');
         }
-        private IntToken number() {
+        private Node number() {
             (int, int) startpos = pos();
             string result = "";
             while (!isBlank() && seek() != ')' && seek() != ';') {
                 result += get();
+            }
+            int Int;
+            double Float;
+            if (!Int32.TryParse(result, out Int)) {
+                if (!Double.TryParse(result, out Float)) {
+                    BdebtError.errors.Add(new BdebtError.Error(startpos, result.Length, BdebtError.ErrorType.syntaxError, $"不正なトークン: 数値ではありません"));
+                }
+                else {
+                    return new FloatToken(result, startpos);
+                }
             }
             return new IntToken(result, startpos);
         }
@@ -545,6 +593,26 @@ namespace PriBdebtTree {
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write($"id:");
             Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.Write(_value);
+            Console.ResetColor();
+        }
+    }
+    public class FloatToken : Node {
+        public string _value { get; }
+        private (int, int) _pos { get; }
+        public FloatToken(string value, (int, int) pos) {
+            _value = value;
+            _pos = pos;
+            for (int i = 0; i < _value.Length; i++) {
+                BdebtCode.syntaxdata[_pos.Item1 - 1][_pos.Item2 - 1 + i] = BdebtCode.syntaxval.number;
+            }
+        }
+        public override string ToString() { return ToString(0); }
+        public string ToString(int indent) { return $"num:{_value}"; }
+        public void ConsoleWrite(int indent) {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write($"num:");
+            Console.ForegroundColor = ConsoleColor.Green;
             Console.Write(_value);
             Console.ResetColor();
         }

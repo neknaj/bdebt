@@ -9,6 +9,8 @@
 //using System.Collections.Generic;
 //using Sprache;
 
+using System.CodeDom;
+
 public class BdebtTools {
     static private string[] inputCode = new string[0];
     static private LineInfo[] CodeLine = new LineInfo[0];
@@ -35,13 +37,7 @@ public class BdebtTools {
         return true;
     }
 
-    enum LineType : byte {
-        Empty = 0b_0000_0000,
-        Code = 0b_0000_0001,
-        Comment = 0b_0000_0010,
-        IncInd = 0b_0000_0100,
-        EOF = 0b_0000_1000,
-    }
+    enum LineType : byte { Empty, Code, Comment, IncInd, EOF, }
     struct LineInfo {
         public LineType Type { get; set; }
         public int Indent { get; set; }
@@ -112,9 +108,13 @@ public class BdebtTools {
 public class BdebtExprTokenizer {
     private string _code { get; }
     private int pointer { get; set; }
+    enum Context { Expr, String, Escape }
     public BdebtExprTokenizer(string value) {
-        _code = value;
+        _code = value + "\0";
         pointer = 0;
+        Console.WriteLine($"input :  {_code}");
+        BdebtExprTree.Expr tree = expr();
+        Console.WriteLine($"output:  {tree}");
     }
     private char seek() {
         return _code[pointer];
@@ -122,6 +122,82 @@ public class BdebtExprTokenizer {
     private char get() {
         pointer++;
         return _code[pointer - 1];
+    }
+    private void Blank_() {
+        while (seek() == ' ') { get(); }
+        return;
+    }
+    private BdebtExprTree.IntToken number() {
+        string result = "";
+        while (seek() != ' ') {
+            result += get();
+        }
+        return new BdebtExprTree.IntToken(result);
+    }
+    private BdebtExprTree.Node token() {
+        int Number;
+        return seek() switch
+        {
+            var d when int.TryParse(d.ToString(),out Number) => number(),
+            _ => new BdebtExprTree.IdentToken(get().ToString())
+        };
+    }
+    private BdebtExprTree.Expr expr() {
+        List<BdebtExprTree.Node> _child = new List<BdebtExprTree.Node>();
+        while (seek() != '\0' && seek() != ')') {
+            Blank_();
+            if (seek() == '(') { get(); _child.Add(expr()); }
+            else { _child.Add(token()); }
+        }
+        if (seek() == ')') { get(); }
+        return new BdebtExprTree.Expr(_child);
+    }
+}
+namespace BdebtExprTree {
+    public interface Node {
+        public string ToString();
+    }
+    public class Expr : Node {
+        public List<Node> _child { get; }
+        public Expr(List<Node> child) {
+            _child = child;
+        }
+        public override string ToString() {
+            string result = "(";
+            for (int i = 0; i < _child.Count; i++) {
+                result += $" {_child[i]},";
+            }
+            result += " )";
+            return result;
+        }
+    }
+    public class IdentToken : Node {
+        public string _value { get; }
+        public IdentToken(string value) {
+            _value = value;
+        }
+        public override string ToString() { return $"[id:{_value}]"; }
+    }
+    public class IntToken : Node {
+        public string _value { get; }
+        public IntToken(string value) {
+            _value = value;
+        }
+        public override string ToString() { return $"[int:{_value}]"; }
+    }
+    public class DecimalToken : Node {
+        public string _value { get; }
+        public DecimalToken(string value) {
+            _value = value;
+        }
+        public override string ToString() { return $"[dec:{_value}]"; }
+    }
+    public class StringToken : Node {
+        public string _value { get; }
+        public StringToken(string value) {
+            _value = value;
+        }
+        public override string ToString() { return $"[str:{_value}]"; }
     }
 }
 namespace PriBdebtTree {

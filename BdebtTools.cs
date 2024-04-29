@@ -14,9 +14,11 @@ using System.Drawing.Drawing2D;
 using System.Web;
 public static class BdebtCode {
     public static string[] inputCode = [];
-    public static syntaxval[][] syntaxdata;
+    public static syntaxval[][] syntaxdata = [];
     public enum syntaxval {
         clear,
+        comment,
+        note,
         number,
         ident,
     }
@@ -57,10 +59,18 @@ public class BdebtTools {
                 {
                     BdebtCode.syntaxval.number => ConsoleColor.Green,
                     BdebtCode.syntaxval.ident => ConsoleColor.Cyan,
+                    BdebtCode.syntaxval.comment => ConsoleColor.DarkGreen,
+                    BdebtCode.syntaxval.note => ConsoleColor.White,
                     _ => ConsoleColor.White,
+                };
+                Console.BackgroundColor = color switch
+                {
+                    BdebtCode.syntaxval.note => ConsoleColor.DarkGray,
+                    _ => ConsoleColor.Black,
                 };
                 Console.Write(inputCode[num][i]);
             }
+            Console.BackgroundColor = ConsoleColor.Black;
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write("\\n\n");
             Console.ResetColor();
@@ -252,7 +262,7 @@ namespace PriBdebtTree {
         public Stats value { get; }
         private int startline { get; }
         public BdebtBlockParser(List<CodeLine> _value) {
-            _code = string.Join("\n", _value) + "\0";
+            _code = string.Join("\n", _value) + "\n\0";
             startline = _value[0]._line;
             pointer = 0;
             value = stats();
@@ -279,8 +289,24 @@ namespace PriBdebtTree {
             pointer++;
             return _code[pointer - 1];
         }
+        private void Comment() {
+            BdebtCode.syntaxdata[pos().Item1 - 1][pos().Item2 - 1] = BdebtCode.syntaxval.comment;
+            get();
+            BdebtCode.syntaxval syntaxval = seek() == ':' ? BdebtCode.syntaxval.note : BdebtCode.syntaxval.comment;
+            if (seek() == ':') {
+                BdebtCode.syntaxdata[pos().Item1 - 1][pos().Item2 - 1] = BdebtCode.syntaxval.comment;
+                get();
+                if (seek() == ' ') { BdebtCode.syntaxdata[pos().Item1 - 1][pos().Item2 - 1] = BdebtCode.syntaxval.comment; get(); }
+            }
+            while (seek() != '\n') { // çsÉRÉÅÉìÉg
+                BdebtCode.syntaxdata[pos().Item1 - 1][pos().Item2 - 1] = syntaxval;
+                get();
+            }
+            return;
+        }
         private void Blank_() {
             while (seek() == ' ' || seek() == '\n') { get(); }
+            if (seek() == '#') { Comment(); Blank_(); }
             return;
         }
         private bool isBlank() {
@@ -302,21 +328,84 @@ namespace PriBdebtTree {
             }
             return new IdentToken(result, startpos);
         }
+        private IdentToken funcident() {
+            (int, int) startpos = pos();
+            string result = "";
+            while (!isBlank() && seek() != '(' && seek() != ')' && seek() != ';') {
+                result += get();
+            }
+            return new IdentToken(result, startpos);
+        }
+        private bool isfunccall() {
+            (int, int) startpos = pos();
+            int sp = pointer;
+            IdentToken func = funcident();
+            if (seek() == '(') {
+                get();
+                while (seek() != ')') {
+                    Blank_();
+                    if (seek() == '(') { get(); paren(); }
+                    else { token(); }
+                }
+                get();
+            }
+            else {
+                pointer = sp;
+                return false;
+            }
+            pointer = sp;
+            return true;
+        }
+        private Expr funccall(List<Node> _child) {
+            (int, int) startpos = pos();
+            IdentToken func = funcident();
+            if (seek() == '(') {
+                get();
+                while (seek() != ')') {
+                    Blank_();
+                    if (seek() == '(') { get(); _child.Add(paren()); }
+                    else { _child.Add(token()); }
+                }
+                get();
+            }
+            _child.Add(func);
+            return new Expr(_child, startpos);
+        }
         private Node token() {
             (int, int) startpos = pos();
             int Number;
             return seek() switch
             {
                 var d when int.TryParse(d.ToString(), out Number) => number(),
+                var d when isfunccall() => funccall(new List<Node>()),
                 _ => ident()
             };
+        }
+        private int funcArrow() {
+            int cnt = 0;
+            if (seek() != '-') { return 0; }
+            int sp = pointer;
+            while (seek() == '-') { cnt++; get(); }
+            if (get() != '>') { pointer = sp; return 0; }
+            if (!isBlank()) { pointer = sp; return 0; }
+            return cnt;
         }
         private Expr paren() {
             (int, int) startpos = pos();
             List<Node> _child = new List<Node>();
             while (seek() != ')') {
                 Blank_();
-                if (seek() == '(') { get(); _child.Add(paren()); }
+                int fa = funcArrow();
+                if (fa != 0) {
+                    Blank_();
+                    List<Node> _beforearg = _child.GetRange(_child.Count - fa, fa).ToList();
+                    for (int j = 0; j < fa; j++) {
+                        _child.RemoveAt(_child.Count - 1);
+                    }
+                    _child.Add(funccall(_beforearg));
+                    continue;
+                }
+                else if (seek() == '(') { get(); _child.Add(paren()); }
                 else { _child.Add(token()); }
             }
             get();
@@ -327,8 +416,18 @@ namespace PriBdebtTree {
             List<Node> _child = new List<Node>();
             while (seek() != ';') {
                 Blank_();
-                if (seek() == ';') { break; }
-                if (seek() == '(') { get(); _child.Add(paren()); }
+                int fa = funcArrow();
+                if (fa != 0) {
+                    Blank_();
+                    List<Node> _beforearg = _child.GetRange(_child.Count - fa, fa).ToList();
+                    for (int j = 0; j < fa; j++) {
+                        _child.RemoveAt(_child.Count - 1);
+                    }
+                    _child.Add(funccall(_beforearg));
+                    continue;
+                }
+                else if (seek() == ';') { break; }
+                else if (seek() == '(') { get(); _child.Add(paren()); }
                 else { _child.Add(token()); }
             }
             return new Expr(_child, startpos);
@@ -338,10 +437,9 @@ namespace PriBdebtTree {
             Expr statexpr = new Expr(new List<Node>(), startpos);
             while (seek() != ';') {
                 Blank_();
-                if (seek() == ';') { break; }
                 statexpr = expr();
             }
-            get();
+            if (seek() == ';') { get(); }
             return new Stat(statexpr, startpos);
         }
         private Stats stats() {
@@ -349,6 +447,7 @@ namespace PriBdebtTree {
             List<Node> _child = new List<Node>();
             while (seek() != '\0') {
                 Blank_();
+                if (seek() == '\0') { break; }
                 _child.Add(stat());
             }
             return new Stats(_child, startpos);
@@ -457,7 +556,7 @@ namespace PriBdebtTree {
             _value = value;
             _pos = pos;
             for (int i = 0; i < _value.Length; i++) {
-                BdebtCode.syntaxdata[_pos.Item1-1][_pos.Item2-1 + i] = BdebtCode.syntaxval.number;
+                BdebtCode.syntaxdata[_pos.Item1 - 1][_pos.Item2 - 1 + i] = BdebtCode.syntaxval.number;
             }
         }
         public override string ToString() { return ToString(0); }

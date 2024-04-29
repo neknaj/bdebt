@@ -11,6 +11,7 @@
 
 using Sprache;
 using System.CodeDom;
+using System.Drawing.Drawing2D;
 using System.Web;
 
 public class BdebtTools {
@@ -144,13 +145,13 @@ namespace PriBdebtTree {
                 }
                 else {
                     if (value.Count > 0) {
-                        _child.Add(new BdebtBlockParser(value.Select(l => l.ToString()).ToArray()).value);
+                        _child.Add(new BdebtBlockParser(value).value);
                     }
                     _child.Add(child[i]);
                 }
             }
             if (value.Count > 0) {
-                _child.Add(new BdebtBlockParser(value.Select(l => l.ToString()).ToArray()).value);
+                _child.Add(new BdebtBlockParser(value).value);
             }
         }
         public override string ToString() { return ToString(0); }
@@ -177,13 +178,15 @@ namespace PriBdebtTree {
                 }
                 else {
                     if (value.Count > 0) {
-                        _child.Add(new BdebtBlockParser(value.Select(l => l.ToString()).ToArray()).value);
+                        _child.Add(new BdebtBlockParser(value).value);
+                        value = new List<CodeLine>();
                     }
                     _child.Add(child[i]);
                 }
             }
             if (value.Count > 0) {
-                _child.Add(new BdebtBlockParser(value.Select(l => l.ToString()).ToArray()).value);
+                _child.Add(new BdebtBlockParser(value).value);
+                value = new List<CodeLine>();
             }
         }
         public override string ToString() { return ToString(0); }
@@ -199,8 +202,10 @@ namespace PriBdebtTree {
         private string _code { get; }
         private int pointer { get; set; }
         public Stats value { get; }
-        public BdebtBlockParser(string[] _value) {
+        private int startline { get; }
+        public BdebtBlockParser(List<CodeLine> _value) {
             _code = string.Join("\n", _value) + "\0";
+            startline = _value[0]._line;
             pointer = 0;
             value = stats();
             //Console.WriteLine();
@@ -208,6 +213,16 @@ namespace PriBdebtTree {
             //Console.WriteLine();
             //Console.WriteLine($"output: {String.Join("\n        ", value.ToString().Split('\n'))}");
             //Console.WriteLine();
+        }
+        private (int, int) pos() { return pos(startline); }
+        private (int, int) pos(int startline) {
+            int line = startline;
+            int col = 0;
+            for (int i = 0; i <= pointer; i++) {
+                col++;
+                if (_code[i] == '\n') { line++; col = 0; }
+            }
+            return (line+1, col);
         }
         private char seek() {
             return _code[pointer];
@@ -224,20 +239,23 @@ namespace PriBdebtTree {
             return (seek() == ' ' || seek() == '\n');
         }
         private IntToken number() {
+            (int, int) startpos = pos();
             string result = "";
             while (!isBlank() && seek() != ')' && seek() != ';') {
                 result += get();
             }
-            return new IntToken(result);
+            return new IntToken(result, startpos);
         }
         private IdentToken ident() {
+            (int, int) startpos = pos();
             string result = "";
             while (!isBlank() && seek() != ')' && seek() != ';') {
                 result += get();
             }
-            return new IdentToken(result);
+            return new IdentToken(result, startpos);
         }
         private Node token() {
+            (int, int) startpos = pos();
             int Number;
             return seek() switch
             {
@@ -246,6 +264,7 @@ namespace PriBdebtTree {
             };
         }
         private Expr paren() {
+            (int, int) startpos = pos();
             List<Node> _child = new List<Node>();
             while (seek() != ')') {
                 Blank_();
@@ -253,9 +272,10 @@ namespace PriBdebtTree {
                 else { _child.Add(token()); }
             }
             get();
-            return new Expr(_child);
+            return new Expr(_child, startpos);
         }
         private Expr expr() {
+            (int, int) startpos = pos();
             List<Node> _child = new List<Node>();
             while (seek() != ';') {
                 Blank_();
@@ -263,33 +283,37 @@ namespace PriBdebtTree {
                 if (seek() == '(') { get(); _child.Add(paren()); }
                 else { _child.Add(token()); }
             }
-            return new Expr(_child);
+            return new Expr(_child, startpos);
         }
         private Stat stat() {
-            Expr statexpr = new Expr(new List<Node>());
+            (int, int) startpos = pos();
+            Expr statexpr = new Expr(new List<Node>(), startpos);
             while (seek() != ';') {
                 Blank_();
                 if (seek() == ';') { break; }
                 statexpr = expr();
             }
             get();
-            return new Stat(statexpr);
+            return new Stat(statexpr, startpos);
         }
         private Stats stats() {
+            (int, int) startpos = pos();
             List<Node> _child = new List<Node>();
             while (seek() != '\0') {
                 Blank_();
                 _child.Add(stat());
             }
-            return new Stats(_child);
+            return new Stats(_child, startpos);
         }
     }
 
 
     public class Stats : Node {
         public List<Node> _child { get; }
-        public Stats(List<Node> child) {
+        private (int, int) _pos { get; }
+        public Stats(List<Node> child, (int, int) pos) {
             _child = child;
+            _pos = pos;
         }
         public override string ToString() { return ToString(0); }
         public string ToString(int indent) {
@@ -303,16 +327,20 @@ namespace PriBdebtTree {
     }
     public class Stat : Node {
         public Expr _expr { get; }
-        public Stat(Expr expr) {
+        private (int, int) _pos { get; }
+        public Stat(Expr expr, (int, int) pos) {
             _expr = expr;
+            _pos = pos;
         }
         public override string ToString() { return ToString(0); }
         public string ToString(int indent) { return $"Stat: {_expr}"; }
     }
     public class Expr : Node {
         public List<Node> _child { get; }
-        public Expr(List<Node> child) {
+        private (int, int) _pos { get; }
+        public Expr(List<Node> child, (int, int) pos) {
             _child = child;
+            _pos = pos;
         }
         public override string ToString() { return ToString(0); }
         public string ToString(int indent) {
@@ -326,32 +354,40 @@ namespace PriBdebtTree {
     }
     public class IdentToken : Node {
         public string _value { get; }
-        public IdentToken(string value) {
+        private (int, int) _pos { get; }
+        public IdentToken(string value, (int, int) pos) {
             _value = value;
+            _pos = pos;
         }
         public override string ToString() { return ToString(0); }
         public string ToString(int indent) { return $"id:{_value}"; }
     }
     public class IntToken : Node {
         public string _value { get; }
-        public IntToken(string value) {
+        private (int, int) _pos { get; }
+        public IntToken(string value, (int, int) pos) {
             _value = value;
+            _pos = pos;
         }
         public override string ToString() { return ToString(0); }
         public string ToString(int indent) { return $"int:{_value}"; }
     }
     public class DecimalToken : Node {
         public string _value { get; }
-        public DecimalToken(string value) {
+        private (int, int) _pos { get; }
+        public DecimalToken(string value, (int, int) pos) {
             _value = value;
+            _pos = pos;
         }
         public override string ToString() { return ToString(0); }
         public string ToString(int indent) { return $"dec:{_value}"; }
     }
     public class StringToken : Node {
         public string _value { get; }
-        public StringToken(string value) {
+        private (int, int) _pos { get; }
+        public StringToken(string value, (int, int) pos) {
             _value = value;
+            _pos = pos;
         }
         public override string ToString() { return ToString(0); }
         public string ToString(int indent) { return $"str:{_value}"; }

@@ -13,12 +13,25 @@ using Sprache;
 using System.CodeDom;
 using System.Drawing.Drawing2D;
 using System.Web;
-
+public static class BdebtCode {
+    public static string[] inputCode = [];
+    public static syntaxval[][] syntaxdata;
+    public enum syntaxval {
+        clear,
+        number,
+        ident,
+    }
+}
 public class BdebtTools {
-    static private string[] inputCode = new string[0];
-    static private LineInfo[] CodeLine = new LineInfo[0];
+    static private string[] inputCode = [];
+    static private LineInfo[] CodeLine = [];
     static public void Proc(string[] code, string[] args) {
         inputCode = code;
+        BdebtCode.inputCode = inputCode;
+        BdebtCode.syntaxdata = new BdebtCode.syntaxval[code.Length][];
+        for (int i = 0; i < code.Length; i++) {
+            BdebtCode.syntaxdata[i] = new BdebtCode.syntaxval[code[i].Length];
+        }
         addIndent();
         (int r1, int r2, List<PriBdebtTree.Node> _tree) = parseIndent(0, 0);
         PriBdebtTree.RootNode tree = new PriBdebtTree.RootNode(_tree);
@@ -27,7 +40,8 @@ public class BdebtTools {
         showInput();
         Console.WriteLine();
         Console.WriteLine("[parse]");
-        Console.WriteLine(tree.ToString(9));
+        //Console.WriteLine(tree.ToString(9));
+        tree.ConsoleWrite(9);
         return;
     }
     static bool showInput(int start = 0, int? end = null) {
@@ -37,7 +51,20 @@ public class BdebtTools {
         if (end > inputCode.Length) { Console.Error.WriteLine("showInput Argument 'end' is out of range"); end = inputCode.Length; }
         if (end < start) { Console.Error.WriteLine("showInput range from Arguments 'start', 'end' is invalid"); return false; }
         while (num < end) {
-            Console.WriteLine("{0, 5} :  {1}", num + 1, inputCode[num]);
+            Console.Write($"{num + 1,4} :  ");
+            for (int i = 0; i < inputCode[num].Length; i++) {
+                var color = BdebtCode.syntaxdata[num][i];
+                Console.ForegroundColor = color switch
+                {
+                    BdebtCode.syntaxval.number => ConsoleColor.Green,
+                    BdebtCode.syntaxval.ident => ConsoleColor.Cyan,
+                    _ => ConsoleColor.White,
+                };
+                Console.Write(inputCode[num][i]);
+            }
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write("\\n\n");
+            Console.ResetColor();
             num++;
         }
         return true;
@@ -114,6 +141,7 @@ namespace PriBdebtTree {
     public interface Node {
         public string ToString(int indent);
         public string ToString();
+        public void ConsoleWrite(int indent);
     }
     public class CodeLine : Node {
         public int _line { get; }
@@ -125,6 +153,9 @@ namespace PriBdebtTree {
         public override string ToString() { return ToString(0); }
         public string ToString(int indent) {
             return _value;
+        }
+        public void ConsoleWrite(int indent) {
+            Console.Write(_value);
         }
     }
     public class StructNode : Node {
@@ -163,6 +194,18 @@ namespace PriBdebtTree {
             result += $"{new String(' ', indent)}}}";
             return result;
         }
+        public void ConsoleWrite(int indent) {
+            Console.Write(new String(' ', indent));
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.Write($"Struct");
+            Console.ResetColor();
+            Console.Write($" {{\n");
+            for (int i = 0; i < _child.Count; i++) {
+                _child[i].ConsoleWrite(indent + 4);
+                Console.Write("\n");
+            }
+            Console.Write($"{new String(' ', indent)}}}");
+        }
     }
     public class RootNode : Node {
         public List<Node> _childline { get; }
@@ -197,6 +240,12 @@ namespace PriBdebtTree {
             }
             return result;
         }
+        public void ConsoleWrite(int indent) {
+            for (int i = 0; i < _child.Count; i++) {
+                _child[i].ConsoleWrite(indent);
+                Console.Write("\n");
+            }
+        }
     }
     public class BdebtBlockParser {
         private string _code { get; }
@@ -222,7 +271,7 @@ namespace PriBdebtTree {
                 col++;
                 if (_code[i] == '\n') { line++; col = 0; }
             }
-            return (line+1, col);
+            return (line + 1, col);
         }
         private char seek() {
             return _code[pointer];
@@ -324,6 +373,19 @@ namespace PriBdebtTree {
             result += $"{new String(' ', indent)}}}";
             return result;
         }
+        public void ConsoleWrite(int indent) {
+            Console.Write(new String(' ', indent));
+            Console.ForegroundColor = ConsoleColor.DarkBlue;
+            Console.Write($"Stats");
+            Console.ResetColor();
+            Console.Write($" {{\n");
+            for (int i = 0; i < _child.Count; i++) {
+                Console.Write(new String(' ', indent + 4));
+                _child[i].ConsoleWrite(0);
+                Console.Write(",\n");
+            }
+            Console.Write($"{new String(' ', indent)}}}");
+        }
     }
     public class Stat : Node {
         public Expr _expr { get; }
@@ -334,6 +396,14 @@ namespace PriBdebtTree {
         }
         public override string ToString() { return ToString(0); }
         public string ToString(int indent) { return $"Stat: {_expr}"; }
+        public void ConsoleWrite(int indent) {
+            Console.Write(new String(' ', indent));
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.Write($"Stat");
+            Console.ResetColor();
+            Console.Write(" ");
+            _expr.ConsoleWrite(0);
+        }
     }
     public class Expr : Node {
         public List<Node> _child { get; }
@@ -351,6 +421,15 @@ namespace PriBdebtTree {
             result += " )";
             return result;
         }
+        public void ConsoleWrite(int indent) {
+            Console.Write($"(");
+            for (int i = 0; i < _child.Count; i++) {
+                Console.Write(" ");
+                _child[i].ConsoleWrite(0);
+                Console.Write(",");
+            }
+            Console.Write($" )");
+        }
     }
     public class IdentToken : Node {
         public string _value { get; }
@@ -358,9 +437,19 @@ namespace PriBdebtTree {
         public IdentToken(string value, (int, int) pos) {
             _value = value;
             _pos = pos;
+            for (int i = 0; i < _value.Length; i++) {
+                BdebtCode.syntaxdata[_pos.Item1 - 1][_pos.Item2 - 1 + i] = BdebtCode.syntaxval.ident;
+            }
         }
         public override string ToString() { return ToString(0); }
         public string ToString(int indent) { return $"id:{_value}"; }
+        public void ConsoleWrite(int indent) {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write($"id:");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.Write(_value);
+            Console.ResetColor();
+        }
     }
     public class IntToken : Node {
         public string _value { get; }
@@ -368,9 +457,19 @@ namespace PriBdebtTree {
         public IntToken(string value, (int, int) pos) {
             _value = value;
             _pos = pos;
+            for (int i = 0; i < _value.Length; i++) {
+                BdebtCode.syntaxdata[_pos.Item1-1][_pos.Item2-1 + i] = BdebtCode.syntaxval.number;
+            }
         }
         public override string ToString() { return ToString(0); }
         public string ToString(int indent) { return $"int:{_value}"; }
+        public void ConsoleWrite(int indent) {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write($"int:");
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Write(_value);
+            Console.ResetColor();
+        }
     }
     public class DecimalToken : Node {
         public string _value { get; }
@@ -381,6 +480,12 @@ namespace PriBdebtTree {
         }
         public override string ToString() { return ToString(0); }
         public string ToString(int indent) { return $"dec:{_value}"; }
+        public void ConsoleWrite(int indent) {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write($"dec:");
+            Console.ResetColor();
+            Console.Write(_value);
+        }
     }
     public class StringToken : Node {
         public string _value { get; }
@@ -391,5 +496,11 @@ namespace PriBdebtTree {
         }
         public override string ToString() { return ToString(0); }
         public string ToString(int indent) { return $"str:{_value}"; }
+        public void ConsoleWrite(int indent) {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write($"str:");
+            Console.ResetColor();
+            Console.Write(_value);
+        }
     }
 }

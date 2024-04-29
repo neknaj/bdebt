@@ -1,0 +1,69 @@
+#: Neknaj Language For Programming
+
+!include: stdcalc;
+!using: stdcalc;
+
+!replace: pi: 3.1415;
+
+!global: 12.str: string; # this is a line comment
+
+&namespace namespacename
+    
+    &fn 0.void() syntaxs
+        !varname1: 4.int;               // 変数宣言
+        150 :> !varname2: 4.int;        // 代入付き変数宣言
+        1.5 :> !varname2;               // 代入付き変数宣言(型推論)
+        150 :> !varname2: 4.int const;  // 定数宣言
+        1.5 :> !varname2: const;        // 定数宣言(型推論)
+        !array: 4.int[];                // 配列の型
+    
+    &class name: public     // クラス
+        !varname3: 4.int;
+        &fn 0.void()
+            10 5 +;
+    
+    &struct name: readonly  // 構造体
+        &fn name(int v)
+            v :> member;
+        member: 4.int;
+    
+    &enum name: 4.int;      // enum
+        member;
+    
+    &fn 0.void() ctrl
+        &if (x max <)
+            y x + :> z;
+            &if (true)
+                null :> return;
+        
+        &if (x max <)
+            y x + :> z;
+        
+        &if (x max <)
+            y x + :> z;
+        &else
+            y 0 + :> y;
+        
+        &if (x max <)
+            y x + :> z;
+        &else if (x 0 >)
+            y 0 + :> y;
+        
+        &if (x max <)
+            y x + :> z;
+        &else if (x 0 >)
+            y 0 + :> y;
+        &else
+            x :> x;
+        
+        &try
+            10 5 +;
+        &catch
+        &finally
+
+&fn 4.int(4.int: max) main
+    !local: 4.int: z;
+    0 :> !local: 4.int: x;
+    0 0 add :> !local: 4.int: y;
+    "hello world" "!\n\"\\" add :> string;
+    0 :> return;

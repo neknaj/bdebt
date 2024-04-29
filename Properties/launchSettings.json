@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "bdebt": {
+      "commandName": "Project",
+      "commandLineArgs": "sample.nlp",
+      "workingDirectory": "D:\\project\\bdebt"
+    }
+  }
+}

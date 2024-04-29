@@ -97,6 +97,7 @@ public class BdebtTools {
                 return (lnum,i-lnum,child);
             }
             //Console.Write($"|{i+1,4}  ");
+            new BdebtExprTokenizer(inputCode[i]);
             child.Add(new PriBdebtTree.CodeLine(i,inputCode[i]));
             i++;
         }
@@ -106,6 +107,24 @@ public class BdebtTools {
 }
 
 
+public class BdebtExprTokenizer
+{
+    private string _code { get; }
+    private int pointer { get; set; }
+    public BdebtExprTokenizer(string value)
+    {
+        _code = value;
+        pointer = 0;
+    }
+    private char seek()
+    {
+        return _code[pointer];
+    }
+    private char get() {
+        pointer++;
+        return _code[pointer - 1];
+    }
+}
 namespace PriBdebtTree {
     public interface Node {
         public string ToString(int indent);

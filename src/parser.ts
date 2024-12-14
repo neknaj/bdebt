@@ -15,9 +15,16 @@ const int = label("int",proc(join(sequence(
 
 
 {
+    // @ts-ignore
     const expr = state=>choice(int,proc(sequence(char("("),char("+"),sep,expr,sep,expr,char(")")),x=>[x[1],x[3],x[5]]))(state);
     function test(input:string) {
-        printAll(input,expr(Input(input)).result)
+        let res = expr(Input(input));
+        if (res.success) {
+            printAll(input,res.result);
+        }
+        else {
+            printAll(input,res);
+        }
     }
     test("(+ +2 +1)")
     test("(+ 12 10)")

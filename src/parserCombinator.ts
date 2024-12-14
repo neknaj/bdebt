@@ -3,11 +3,6 @@ type InputState = {
     index: number; // 現在のインデックス位置
 };
 
-type ParsedTree<T> = {
-    label: string,
-    val: T,
-}
-
 // パーサーの結果型
 type ParseResult<T> = | {
     success: true;
@@ -24,19 +19,15 @@ type Parser<T> = (state: InputState) => ParseResult<T>;
 
 const Input = (input: string): InputState => ({ input, index: 0 });
 
-const sequence = <T>(...parsers: Parser<any>[]): Parser<any[]> => (state: InputState) => {
+const sequence = <T>(...parsers: Parser<T>[]): Parser<T[]> => (state: InputState) => {
     let currentState = state;
-    const results: any[] = [];
+    const results: T[] = [];
 
     // 各パーサーを順番に適用
     for (const parser of parsers) {
         const result = parser(currentState);
         if (!result.success) {
-            return {
-                success: false,
-                error: result.error,
-                index: result.index,
-            };
+            return result;
         }
         results.push(result.result);
         currentState = result.rest;
@@ -114,7 +105,7 @@ const many1 = <T>(parser: Parser<T>): Parser<T[]> => (state: InputState) => {
     };
 };
 
-const optional = <T>(parser: Parser<T>,whenNull: any = ""): Parser<T | null> => (state: InputState) => {
+const optional = <T>(parser: Parser<T>,whenNull: T): Parser<T> => (state: InputState) => {
     const result = parser(state);
     if (result.success) {
         return result; // パーサーが成功した場合はその結果を返す
@@ -127,7 +118,7 @@ const optional = <T>(parser: Parser<T>,whenNull: any = ""): Parser<T | null> => 
 };
 
 
-const char = (expected: string | RegExp): Parser<string> => (state: InputState) => {
+const char = (expected: string): Parser<string> => (state: InputState) => {
     const { input, index } = state;
 
     if (index >= input.length) {
@@ -139,41 +130,42 @@ const char = (expected: string | RegExp): Parser<string> => (state: InputState) 
     }
 
     const charAtIndex = input[index];
-    if (typeof expected === 'string') { // expected が文字の場合
-        if (charAtIndex === expected) {
-            return {
-                success: true,
-                result: expected,
-                rest: { input, index: index + 1 },
-            };
-        }
+    if (charAtIndex === expected) {
         return {
-            success: false,
-            error: `Expected '${expected}', got '${charAtIndex}'`,
-            index,
+            success: true,
+            result: expected,
+            rest: { input, index: index + 1 },
         };
     }
-    else { // expected が正規表現の場合
-        if (expected.test(charAtIndex)) {
-            return {
-                success: true,
-                result: charAtIndex,
-                rest: { input, index: index + 1 },
-            };
-        }
-    }
-
     return {
         success: false,
-        error: `Expected character matching '${expected}', got '${charAtIndex}'`,
+        error: `Expected '${expected}', got '${charAtIndex}'`,
         index,
     };
 };
 
-const string = (expected: string): Parser<any> => {
+const string = (expected: string): Parser<string> => {
     const char_ = expected.split("").map((x)=>char(x));
-    return sequence(...char_);
+    return join(sequence(...char_));
 }
+
+const regex = (pattern: RegExp): Parser<string> => (state: InputState) => {
+    const { input, index } = state;
+    const remaining = input.slice(index);
+    const match = remaining.match(pattern);
+    if (match && match.index === 0) {
+        return {
+            success: true,
+            result: match[0],
+            rest: { input, index: index + match[0].length },
+        };
+    }
+    return {
+        success: false,
+        error: `Expected pattern ${pattern}, but no match`,
+        index,
+    };
+};
 
 const proc = <T, U>(parser: Parser<T>, resultProcessor: (result: T) => U): Parser<U> => (state: InputState) => {
     const result = parser(state);
@@ -187,7 +179,7 @@ const proc = <T, U>(parser: Parser<T>, resultProcessor: (result: T) => U): Parse
     return result;
 };
 
-const join = <T>(parser: Parser<T>): Parser<any> => (state: InputState) => {
+const join = (parser: Parser<string[]>): Parser<string> => (state: InputState) => {
     const result = parser(state);
     if (result.success) {
         if (Array.isArray(result.result)) {
@@ -200,7 +192,7 @@ const join = <T>(parser: Parser<T>): Parser<any> => (state: InputState) => {
         else {
             return {
                 success: false,
-                error: "",
+                error: "result is not an Array",
                 index: -1,
             };
         }
@@ -208,13 +200,19 @@ const join = <T>(parser: Parser<T>): Parser<any> => (state: InputState) => {
     return result;
 }
 
-const label = <T>(label:string,parser: Parser<T>): Parser<ParsedTree<T>> => (state: InputState) => {
+type ParsedTree = {
+    label: string,
+    value: any,
+}
+
+const node = <T>(label:string,parser: Parser<T>): Parser<ParsedTree> => (state: InputState) => {
+    // console.log(state.input.slice(state.index),label)
     const result = parser(state);
     if (result.success) {
         return {
             success: true,
             rest: result.rest,
-            result: {label,val:result.result},
+            result: {label,value:result.result},
         };
     }
     return {
@@ -224,4 +222,25 @@ const label = <T>(label:string,parser: Parser<T>): Parser<ParsedTree<T>> => (sta
     };
 }
 
-export {InputState,ParsedTree,ParseResult,Parser,Input,sequence,choice,many,many1,optional,char,string,proc,join,label}
+const eraseEmptyLabel = (parser: Parser<ParsedTree[]>): Parser<ParsedTree[]> => (state: InputState) => {
+    const result = parser(state);
+    if (result.success) {
+        if (Array.isArray(result.result)) {
+            return {
+                success: true,
+                rest: result.rest,
+                result: result.result.filter(x=>x.label!=""),
+            };
+        }
+        else {
+            return {
+                success: false,
+                error: "result is not an Array",
+                index: -1,
+            };
+        }
+    }
+    return result;
+}
+
+export {InputState,ParseResult,Parser,Input,sequence,choice,many,many1,optional,char,string,regex,proc,join,ParsedTree,node,eraseEmptyLabel}

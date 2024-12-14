@@ -2,15 +2,14 @@
 
 <expr_> := <expr> ( <sep>+ <expr> )*
 
-<expr> := <literal> | <funcCall> | <variable> | <paren_expr> | <prop>
-    <paren_expr> := "<" <expr_> ">"
+<expr> := <literal> | <funcCall> | <variable> | <parenExpr> | <prop>
+    <parenExpr> := "<" <expr_> ">"
     <prop> : = <propDot> | <propBracket>
         <propDot> := <expr> "." <identifier>
         <propBracket> := <expr> "[" <expr> "]"
-    <funcCall> := <funcCall1> | <funcCall2> | <funcCall3>
-        <funcCall1> := <expr> "(" <sep>* <expr_> <sep>* ")"
-        <funcCall2> := "(:" <expr> <sep>+ <expr_> <sep>* ")"
-        <funcCall3> := "(" <sep>* <expr_> <sep>+ <expr> ":)"
+    <funcCall> := <funcCall1> | <funcCall2>
+        <funcCall1> := "(:" <expr> <sep>+ <expr_> ")"
+        <funcCall2> := "(" <expr_> <sep>+ <expr> ":)"
     <variable> := <identifier>
         <identifier> := /^([a-zA-Zぁ-んァ-ン一-龯][a-zA-Z0-9_$ぁ-んァ-ン一-龯]*)$/
 
@@ -18,7 +17,7 @@
     <bool> := <true> | <false>
         <true> := "true"
         <false> := "false"
-    <number> := <float> | <int> | <int2> | <int16>
+    <number> := <int2> | <int16> | <float> | <int>
         <float> := <sign>? <digit>+ "." <digit>*
         <int> := <sign>? <digit>+
         <int2> := <sign>? "0b" <digit2>+

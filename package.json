@@ -1,0 +1,12 @@
+{
+  "name": "bdebt",
+  "type": "module",
+  "scripts": {
+    "build": "tsc"
+  },
+  "author": "bem130 <bem130@ymail.ne.jp>",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

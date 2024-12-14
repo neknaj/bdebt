@@ -16,7 +16,7 @@ const int = label("int",proc(join(sequence(
 
 {
     // @ts-ignore
-    const expr = state=>choice(int,proc(sequence(char("("),char("+"),sep,expr,sep,expr,char(")")),x=>[x[1],x[3],x[5]]))(state);
+    const expr = state => choice(int, proc(sequence(char("("), many(sep), char("+"), many1(sep), expr, many1(sep), expr, many(sep), char(")")), x => [x[2], x[4], x[6]]))(state);
     function test(input:string) {
         let res = expr(Input(input));
         if (res.success) {

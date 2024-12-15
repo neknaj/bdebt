@@ -14,10 +14,13 @@ type ParseResult<T> = | {
     index: number; // 失敗した位置
 };
 
+// メモ化
+type MemoCache = Map<number, { result: ParseResult<any>, endIndex: number }>;
+
 // パーサーの型
 type Parser<T> = (state: InputState) => ParseResult<T>;
 
-const Input = (input: string): InputState => ({ input, index: 0 });
+const Input = (input: string): InputState => ({ input: input, index: 0 });
 
 const sequence = <T>(...parsers: Parser<T>[]): Parser<T[]> => (state: InputState) => {
     let currentState = state;
@@ -105,6 +108,61 @@ const many1 = <T>(parser: Parser<T>): Parser<T[]> => (state: InputState) => {
     };
 };
 
+const sepBy = <T, U>(element: Parser<T>, separator: Parser<U>,last: "ignore"|"allow"|"cant"|"must"): Parser<T[]> => (state: InputState) => {
+    const results: T[] = [];
+    let currentState = state;
+    let separatorLasts = false;
+    let lastsSeparatorBackTrack = currentState;
+
+    while (true) {
+        // console.log(JSON.stringify(currentState.input.slice(currentState.index)))
+        // 要素をパース
+        const elementResult = element(currentState);
+        if (!elementResult.success) {
+            break;
+        }
+        separatorLasts = false;
+        results.push(elementResult.result);
+        currentState = elementResult.rest;
+
+        // 区切り文字をパース
+        const separatorResult = separator(currentState);
+        if (!separatorResult.success) {
+            break;
+        }
+        separatorLasts = true;
+        lastsSeparatorBackTrack = currentState;
+        currentState = separatorResult.rest;
+    }
+
+    if (separatorLasts&&last=="cant") { // 最後にセパレータが来てはならない
+        return {
+            success: false,
+            error: `Trailing separators are not allowed`,
+            index: currentState.index,
+        };
+    }
+    if (!separatorLasts&&last=="must") { // 最後にセパレータが来なくてはならない
+        return {
+            success: false,
+            error: `Trailing separators are essential`,
+            index: currentState.index,
+        };
+    }
+    if (separatorLasts&&last=="ignore") { // 最後のセパレータは読まない(バックトラックする)
+        currentState = lastsSeparatorBackTrack;
+    }
+    if (separatorLasts&&last=="allow") { // 最後のセパレータは読む
+        currentState = lastsSeparatorBackTrack;
+    }
+
+    return {
+        success: true,
+        result: results,
+        rest: currentState,
+    };
+};
+
 const optional = <T>(parser: Parser<T>,whenNull: T): Parser<T> => (state: InputState) => {
     const result = parser(state);
     if (result.success) {
@@ -117,6 +175,23 @@ const optional = <T>(parser: Parser<T>,whenNull: T): Parser<T> => (state: InputS
     };
 };
 
+
+const eof = (state: InputState): ParseResult<null> => {
+    const { input, index } = state;
+
+    if (index >= input.length) {
+        return {
+            success: true,
+            result: null,
+            rest: state,
+        };
+    }
+    return {
+        success: false,
+        error: `Expected end of input`,
+        index,
+    };
+};
 
 const char = (expected: string): Parser<string> => (state: InputState) => {
     const { input, index } = state;
@@ -154,6 +229,8 @@ const regex = (pattern: RegExp): Parser<string> => (state: InputState) => {
     const remaining = input.slice(index);
     const match = remaining.match(pattern);
     if (match && match.index === 0) {
+        // console.log(JSON.stringify(remaining),pattern)
+        // console.log(JSON.stringify(match[0]))
         return {
             success: true,
             result: match[0],
@@ -243,4 +320,43 @@ const eraseEmptyLabel = (parser: Parser<ParsedTree[]>): Parser<ParsedTree[]> => 
     return result;
 }
 
-export {InputState,ParseResult,Parser,Input,sequence,choice,many,many1,optional,char,string,regex,proc,join,ParsedTree,node,eraseEmptyLabel}
+// メモ化デコレータ
+const memoize = <T>(parser: Parser<T>): Parser<T> => {
+    const cache: MemoCache = new Map();
+
+    return (state: InputState) => {
+        const { index } = state;
+
+        // キャッシュにヒットするか確認
+        const cachedResult = cache.get(index);
+        if (cachedResult) {
+            return cachedResult.result as ParseResult<T>;
+        }
+
+        // パーサーを実行
+        const result = parser(state);
+
+        // 結果をキャッシュに保存
+        if (result.success) {
+            cache.set(index, {result,endIndex: result.rest.index});
+        }
+
+        return result;
+    };
+};
+
+// 再帰的パーサーに対するメモ化サポート
+const Rec = <T>(parserFactory: () => Parser<T>): Parser<T> => {
+    let memoizedParser: Parser<T> | null = null;
+
+    return (state: InputState) => {
+        // パーサーを遅延初期化
+        if (!memoizedParser) {
+            memoizedParser = memoize(parserFactory());
+        }
+        return memoizedParser(state);
+    };
+};
+
+
+export {InputState,ParseResult,MemoCache,Parser,Input,sequence,choice,many,many1,sepBy,optional,eof,char,string,regex,proc,join,ParsedTree,node,eraseEmptyLabel, memoize, Rec}

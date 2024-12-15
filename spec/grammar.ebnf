@@ -1,6 +1,6 @@
 <module> := <expr_>
 
-<expr_> := <expr> ( <sep>+ <expr> )*
+<expr_> := sepBl( <expr> , <sep>+ )
 
 <expr> := <literal> | <funcCall> | <variable> | <parenExpr> | <prop>
     <parenExpr> := "<" <expr_> ">"

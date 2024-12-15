@@ -40,23 +40,13 @@ const console = new LunaConsole(document.getElementById('console-container'))
 
 </script>
 <script type="module">
-import { Input, sequence, choice, many, many1, optional, char, string, regex, proc, join, node } from "./dist/parserCombinator.js";
-
-    const expr = state => choice(int, proc(sequence(char("("), many(sep), operator, many1(sep), expr, many1(sep), expr, many(sep), char(")")), x => [x[2], x[4], x[6]]))(state);
-    const sep = choice(char(" "),char("\n"));
-
-    const operator = choice(char("+"),char("-"),char("*"),char("/"))
-    const digit = regex(/^[0-9]/);
-    const sign = choice(char("+"),char("-"));
-    const int = node("int",proc(join(sequence(
-        optional(sign,""),
-        join(many1(digit)),
-    )),Number));
+import { Input } from "./dist/parserCombinator.js";
+import { parserGenerator } from "./dist/parser.js"
 
     function run() {
         let input = document.querySelector("#input").value;
-        let res = expr(Input(input));
-        let code = JSON.stringify(res,null,4);
+        let res = parserGenerator()(Input(input));
+        let code = JSON.stringify(res,null,2);
 
             const codeBlock = document.createElement('pre');
             const codeElement = document.createElement('code');
@@ -70,9 +60,9 @@ import { Input, sequence, choice, many, many1, optional, char, string, regex, pr
             hljs.highlightElement(codeElement);
     }
 
-const sampleCode = `( +
-    (* 1 2)
-    (- 2 3)
+const sampleCode = `(:add
+    (sub: 1 2)
+    (mul: 2 3)
 )`
 document.querySelector("#input").value = sampleCode;
 
@@ -117,5 +107,10 @@ document.querySelector("#input").value = sampleCode;
         width: 100%;
         border: 0;
         background-color: rgba(0, 0, 0, 0.0);
+        resize: none;
+    }
+    #result {
+        height: 100%;
+        overflow: auto;
     }
 </style>

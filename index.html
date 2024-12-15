@@ -36,12 +36,18 @@ initlayout(
         result: ()=>{return elm("div",{id:"result"},[])},
     }
 )
-const console = new LunaConsole(document.getElementById('console-container'))
+const Console = new LunaConsole(document.getElementById('console-container'))
+
+console.log = (...args)=>{Console.log(...args.map(x=>typeof x=="string"?x.replace(/\x1b\[\d\d?m/g,''):x))}
+console.info = (...args)=>{Console.info(...args.map(x=>typeof x=="string"?x.replace(/\x1b\[\d\d?m/g,''):x))}
+console.warn = (...args)=>{Console.warn(...args.map(x=>typeof x=="string"?x.replace(/\x1b\[\d\d?m/g,''):x))}
+console.table = (...args)=>{Console.table(...args)};
 
 </script>
 <script type="module">
 import { Input } from "./dist/parserCombinator.js";
-import { parserGenerator } from "./dist/parser.js"
+import { parserGenerator } from "./dist/parser.js";
+import { } from "./dist/test.js";
 
     function run() {
         let input = document.querySelector("#input").value;

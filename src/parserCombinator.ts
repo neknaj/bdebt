@@ -153,7 +153,6 @@ const sepBy = <T, U>(element: Parser<T>, separator: Parser<U>,last: "ignore"|"al
         currentState = lastsSeparatorBackTrack;
     }
     if (separatorLasts&&last=="allow") { // 最後のセパレータは読む
-        currentState = lastsSeparatorBackTrack;
     }
 
     return {

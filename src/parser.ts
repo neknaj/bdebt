@@ -16,23 +16,31 @@ function parserGenerator() {
             const $true = string("true");
             const $false = string("false");
         const bool = node("bool",choice($true,$false));
-    const literal = node("literal",choice(bool,number));
+        const object = node("object",choice(
+            Rec(()=>sequence(node("",char("[")),node("",many(sep)),node("object_elm",sepBy(sequence(identifier,node("",many(sep)),node("",char(":")),node("",many(sep)),expr),node("",many(sep)),"allow")),node("",char("]")))),
+            Rec(()=>sequence(node("",char("[")),node("",many(sep)),node("",char(":")),node("",many(sep)),node("",char("]")))),
+        ));
+        const array = node("array",Rec(()=>sequence(node("",char("[")),node("",many(sep)),node("array_elm",sepBy(expr,node("",many(sep)),"allow")),node("",char("]")))));
+    const literal = node("literal",choice(bool,number,array,object));
 
             const identifier = node("identifier",join(sequence(reg(/^[a-zA-Zぁ-んァ-ン一-龯]/),join(many(reg(/^[a-zA-Z0-9_$ぁ-んァ-ン一-龯]/))))));
         const variable = node("variable",identifier);
-            const funcCall1 = Rec(()=>node("funcCall1",eraseEmptyLabel(sequence(node("", string("(")),node("", many(sep)),node("", char(":")),node("", many(sep)),expr,node("", many1(sep)),expr_,node("", many(sep)),node("", char(")"))))));
-            const funcCall2 = Rec(()=>node("funcCall2",eraseEmptyLabel(sequence(node("", string("(")),node("", many(sep)),expr,node("", many(sep)),node("", char(":")),node("", many(sep)),expr_,node("", many(sep)),node("", char(")"))))));
-            const funcCall3 = Rec(()=>node("funcCall3",eraseEmptyLabel(sequence(node("", string("(")),node("", many(sep)),expr_,node("", many(sep)),node("", char(":")),node("", many(sep)),expr,node("", many(sep)),node("", char(")"))))));
-        const funcCall = memoize(choice(funcCall1,funcCall2,funcCall3));
-            const propBracket = Rec(()=>node("propBracket",sequence(expr,node("",char("[")),expr,node("",char("]")))));
-            const propDot = Rec(()=>node("propDot",sequence(expr,node("",char(".")),identifier)));
-        const prop = node("prop",choice(propDot,propBracket));
-        const parenExpr = (s:InputState)=>node("parenExpr",sequence(node("",char("<")),expr_,node("",char(">"))))(s);
-    const expr:Parser<ParsedTree> = node("expr",choice(literal,funcCall,variable,parenExpr));
+            const funcCallRPN = Rec(()=>node("funcCallRPN",eraseEmptyLabel(choice(
+                sequence( node("",string("(")) , node("",many(sep)) , expr_ , node("",many(sep)) , node("",char(":")) , node("",many(sep)) , expr , node("",many(sep)) , node("",char(")")) ),
+            ))));
+            const funcCallPN = Rec(()=>node("funcCallPN",eraseEmptyLabel(choice(
+                sequence( node("",string("(")) , node("",many(sep)) , node("",string(":")) , node("",many(sep)) , expr , node("",many1(sep)) , expr_ , node("",many(sep)) , node("",char(")")) ),
+                sequence( node("",string("(")) , node("",many(sep)) , expr , node("",many(sep)) , node("",char(":")) , node("",many(sep)) , expr_ , node("",many(sep)) , node("",char(")")) ),
+            ))));
+        const funcCall = memoize(choice(funcCallRPN,funcCallPN));
+        const binOperator = node("binOperator",choice(...["+","-","*","+"].map(x=>char(x))));
+        const prop = Rec(()=>node("prop",sequence(node("",char(".")),expr)));
+        const parenExpr = Rec(()=>node("parenExpr",choice(sequence(node("",char("{")),expr_,node("",char("}"))),sequence(node("",char("(")),expr_,node("",char(")"))))));
+    const expr:Parser<ParsedTree> = node("expr",choice(literal,funcCall,variable,parenExpr,binOperator,prop));
 
     const expr_:Parser<ParsedTree> = node("expr_",sepBy(expr,many1(sep),"ignore"));
 
-    const module = sequence(expr_,node("EOF",eof));
+    const module = sequence(node("",many(sep)),expr_,node("",many(sep)),node("EOF",eof));
     return module;
     // return sequence(node("",char("[")),node("arr",sepBy(literal,sequence(node("",many(sep)),node("",char(",")),node("",many(sep))),false)),node("",char("]")));
 }
@@ -41,41 +49,6 @@ export {parserGenerator}
 // const expr:Parser<ParsedTree> = memoizeRecursive(
 //     ()=>node("expr",choice(sequence(identifier),sequence(expr,node("",string("()"))),sequence(expr,node("",char("(")),node("",choice(expr)),node("",char(")")))))
 // );
-
-{
-    const printAll = (...args: any[])=>{args.forEach((arg)=>{console.dir(arg,{depth:null})});console.log("")}
-    function test(input:string) {
-        printAll(input);
-        let res = parserGenerator()(Input(input));
-        if (res.success) {
-            printAll(res.result);
-        }
-        else {
-            printAll(res);
-        }
-    }
-    // test("[]")
-    // test("[,]") // err
-    // test("[0]")
-    // test("[0,]")
-    // test("[0,1]")
-    // test("[0,1,2]")
-    // test("[0,1,2,]")
-    // test("[0, 1,  2]")
-    // test("[0,1,  2 ,]")
-    test("0 1 2")
-    test("0 1 2 ")
-    test("(f: 0 0)")
-    test("(0 0:g)")
-    test("(0 0 :g)")
-    test("(f: (:g 0 1) 2)")
-    test("(f: (0 1 :g) 2)")
-    test("f.g.e")
-    // test("(+ +2.2 +0)")
-    // test("(+ -0b111 0b10)")
-    // test("(+ (+ 0x10 15) 20)")
-    // test("(+ (+ 50 -1) (+ 25 33))")
-}
 
 
 // function main() {

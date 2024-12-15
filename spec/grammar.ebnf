@@ -1,21 +1,20 @@
 <module> := <expr_>
 
-<expr_> := sepBl( <expr> , <sep>+ )
+<expr_> := sepBl( <expr> , <sep>+ , "ignore")
 
-<expr> := <literal> | <funcCall> | <variable> | <parenExpr> | <BinOperator> | <prop>
-    <parenExpr> := "<" <expr_> ">"
-    <prop> : = <propDot> | <propBracket>
-        <propDot> := <expr> "." <identifier>
-        <propBracket> := <expr> "[" <expr> "]"
-    <BinOperator> := <expr> <expr> <BinOp>
-        <BinOp> := "+" | "-" | "*" | "+"
-    <funcCall> := <funcCall1> | <funcCall2>
-        <funcCall1> := "(:" <expr> <sep>+ <expr_> ")"
-        <funcCall2> := "(" <expr_> <sep>+ <expr> ":)"
+<expr> := <literal> | <funcCall> | <variable> | <parenExpr> | <binOperator> | <prop>
+    <parenExpr> := "{" <expr_> "}" | "(" <expr_> ")"
+    <prop> : = "." <expr>
+    <binOperator> := "+" | "-" | "*" | "+"
+    <funcCall> := <funcCallPN> | <funcCallRPN>
+        <funcCallPN>  := "(:" <sep>* <expr> <sep>+ <expr_> <sep>* ")" | "(" <sep>* <expr> <sep>* ":" <sep>* <expr_> <sep>* ")"
+        <funcCallRPN> := "(" <sep>* <expr_> <sep>* ":" <sep>* <expr> <sep>* ")"
     <variable> := <identifier>
         <identifier> := /^([a-zA-Zぁ-んァ-ン一-龯][a-zA-Z0-9_$ぁ-んァ-ン一-龯]*)$/
 
 <literal> := <bool> | <number> | <string> | <array> | <object>
+    <array> := "[" <sep>* sepBl( <expr> , <sep>+ , "allow" ) "]"
+    <object> := "[" <sep>* sepBl( <identifier> <sep>* ":" <sep>* <expr> , <sep>+ , "allow" ) "]" | "[" <sep>* ":" <sep>* "]"
     <bool> := <true> | <false>
         <true> := "true"
         <false> := "false"
@@ -33,7 +32,5 @@
             <escape> := "\\0" | "\\b" | "\\f" | "\\n" | "\\r" | "\\t" | "\\v" | "\\'" | "\\\"" | "\\\\" | <unicode>
                 <unicode> := "\\u" <digit16>[4]
             <letter> := /^[^\""\0]$/
-    <array> := "[" <expr> ( "," <expr> )* (",")? "]"
-    <object> := "{" ( <identifier> ":" <expr> ) ( "," ( <identifier> ":" <expr> ) )* (",")? "}"
 
 <sep> := " " | "\n"

@@ -2,11 +2,13 @@
 
 <expr_> := sepBl( <expr> , <sep>+ )
 
-<expr> := <literal> | <funcCall> | <variable> | <parenExpr> | <prop>
+<expr> := <literal> | <funcCall> | <variable> | <parenExpr> | <BinOperator> | <prop>
     <parenExpr> := "<" <expr_> ">"
     <prop> : = <propDot> | <propBracket>
         <propDot> := <expr> "." <identifier>
         <propBracket> := <expr> "[" <expr> "]"
+    <BinOperator> := <expr> <expr> <BinOp>
+        <BinOp> := "+" | "-" | "*" | "+"
     <funcCall> := <funcCall1> | <funcCall2>
         <funcCall1> := "(:" <expr> <sep>+ <expr_> ")"
         <funcCall2> := "(" <expr_> <sep>+ <expr> ":)"

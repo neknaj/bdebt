@@ -1,12 +1,12 @@
-import {InputState,ParseResult,MemoCache,Parser,Input,sequence,choice,many,many1,sepBy,optional,eof,char,string,regex,proc,join,ParsedTree,node,eraseEmptyLabel,memoize,Rec} from "./parserCombinator.js";
+import {InputState,ParseResult,MemoCache,Parser,Input,sequence,choice,many,many1,sepBy,optional,eof,char,string,reg,proc,join,ParsedTree,node,eraseEmptyLabel,memoize,Rec} from "./parserCombinator.js";
 
 
 function parserGenerator() {
     const sep = choice(char(" "),char("\n"));
 
-                const digit16 = regex(/^[0-9a-fA-F]/);
-                const digit2 = regex(/^(0|1)/);
-                const digit = regex(/^[0-9]/);
+                const digit16 = reg(/^[0-9a-fA-F]/);
+                const digit2 = reg(/^(0|1)/);
+                const digit = reg(/^[0-9]/);
                 const sign = choice(char("+"),char("-"));
             const int16 = node("int16",proc(sequence(proc(optional(sign,"+"),x=>x=="+"?1:-1),proc(join(sequence(string("0x"),join(many1(digit16)),)),Number)),x=>(x[0]*x[1]).toString()));
             const int2 = node("int2",proc(sequence(proc(optional(sign,"+"),x=>x=="+"?1:-1),proc(join(sequence(string("0b"),join(many1(digit2)),)),Number)),x=>(x[0]*x[1]).toString()));
@@ -18,17 +18,15 @@ function parserGenerator() {
         const bool = node("bool",choice($true,$false));
     const literal = node("literal",choice(bool,number));
 
-            const identifier = node("identifier",join(sequence(regex(/^[a-zA-Zぁ-んァ-ン一-龯]/),join(many(regex(/^[a-zA-Z0-9_$ぁ-んァ-ン一-龯]/))))));
+            const identifier = node("identifier",join(sequence(reg(/^[a-zA-Zぁ-んァ-ン一-龯]/),join(many(reg(/^[a-zA-Z0-9_$ぁ-んァ-ン一-龯]/))))));
         const variable = node("variable",identifier);
-            // const funcCall1 = (s:InputState)=>node("funcCall1",eraseEmptyLabel(sequence(node("",string("(")),expr,node("",char(":")),node("",many1(sep)),expr_,node("",char(")")))))(s);
-            // const funcCall2 = (s:InputState)=>node("funcCall2",eraseEmptyLabel(sequence(node("",string("(")),expr_,node("",char(":")),expr,node("",many(sep)),node("",char(")")))))(s);
-            const funcCall1 = Rec(() =>(s: InputState) => node("funcCall1",eraseEmptyLabel(sequence(node("", string("(")),node("", many(sep)),node("", char(":")),node("", many(sep)),expr,node("", many1(sep)),expr_,node("", many(sep)),node("", char(")")))))(s));
-            const funcCall2 = Rec(() =>(s: InputState) => node("funcCall1",eraseEmptyLabel(sequence(node("", string("(")),node("", many(sep)),expr,node("", many(sep)),node("", char(":")),node("", many(sep)),expr_,node("", many(sep)),node("", char(")")))))(s));
-            const funcCall3 = Rec(() =>(s: InputState) => node("funcCall2",eraseEmptyLabel(sequence(node("", string("(")),node("", many(sep)),expr_,node("", many(sep)),node("", char(":")),node("", many(sep)),expr,node("", many(sep)),node("", char(")")))))(s));
-        const funcCall = choice(funcCall1,funcCall2,funcCall3);
-            // const propBracket = (s:InputState)=>node("propBracket",sequence(expr,node("",char("[")),expr,node("",char("]"))))(s);
-            // const propDot = (s:InputState)=>node("propDot",sequence(expr,node("",char(".")),identifier))(s);
-        // const prop = node("prop",choice(propDot,propBracket));
+            const funcCall1 = Rec(()=>node("funcCall1",eraseEmptyLabel(sequence(node("", string("(")),node("", many(sep)),node("", char(":")),node("", many(sep)),expr,node("", many1(sep)),expr_,node("", many(sep)),node("", char(")"))))));
+            const funcCall2 = Rec(()=>node("funcCall2",eraseEmptyLabel(sequence(node("", string("(")),node("", many(sep)),expr,node("", many(sep)),node("", char(":")),node("", many(sep)),expr_,node("", many(sep)),node("", char(")"))))));
+            const funcCall3 = Rec(()=>node("funcCall3",eraseEmptyLabel(sequence(node("", string("(")),node("", many(sep)),expr_,node("", many(sep)),node("", char(":")),node("", many(sep)),expr,node("", many(sep)),node("", char(")"))))));
+        const funcCall = memoize(choice(funcCall1,funcCall2,funcCall3));
+            const propBracket = Rec(()=>node("propBracket",sequence(expr,node("",char("[")),expr,node("",char("]")))));
+            const propDot = Rec(()=>node("propDot",sequence(expr,node("",char(".")),identifier)));
+        const prop = node("prop",choice(propDot,propBracket));
         const parenExpr = (s:InputState)=>node("parenExpr",sequence(node("",char("<")),expr_,node("",char(">"))))(s);
     const expr:Parser<ParsedTree> = node("expr",choice(literal,funcCall,variable,parenExpr));
 
@@ -72,6 +70,7 @@ export {parserGenerator}
     test("(0 0 :g)")
     test("(f: (:g 0 1) 2)")
     test("(f: (0 1 :g) 2)")
+    test("f.g.e")
     // test("(+ +2.2 +0)")
     // test("(+ -0b111 0b10)")
     // test("(+ (+ 0x10 15) 20)")

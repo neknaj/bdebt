@@ -224,22 +224,29 @@ const string = (expected: string): Parser<string> => {
     return join(sequence(...char_));
 }
 
-const regex = (pattern: RegExp): Parser<string> => (state: InputState) => {
+const reg = (pattern: RegExp): Parser<string> => (state: InputState) => {
     const { input, index } = state;
-    const remaining = input.slice(index);
-    const match = remaining.match(pattern);
+
+    if (index >= input.length) {
+        return {
+            success: false,
+            error: `Unexpected end of input, expected '${pattern}'`,
+            index,
+        };
+    }
+
+    const charAtIndex = input[index];
+    const match = charAtIndex.match(pattern);
     if (match && match.index === 0) {
-        // console.log(JSON.stringify(remaining),pattern)
-        // console.log(JSON.stringify(match[0]))
         return {
             success: true,
             result: match[0],
-            rest: { input, index: index + match[0].length },
+            rest: { input, index: index + 1 },
         };
     }
     return {
         success: false,
-        error: `Expected pattern ${pattern}, but no match`,
+        error: `Expected '${pattern}', got '${charAtIndex}'`,
         index,
     };
 };
@@ -359,4 +366,4 @@ const Rec = <T>(parserFactory: () => Parser<T>): Parser<T> => {
 };
 
 
-export {InputState,ParseResult,MemoCache,Parser,Input,sequence,choice,many,many1,sepBy,optional,eof,char,string,regex,proc,join,ParsedTree,node,eraseEmptyLabel, memoize, Rec}
+export {InputState,ParseResult,MemoCache,Parser,Input,sequence,choice,many,many1,sepBy,optional,eof,char,string,reg,proc,join,ParsedTree,node,eraseEmptyLabel, memoize, Rec}

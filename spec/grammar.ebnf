@@ -14,7 +14,12 @@
 
 <literal> := <bool> | <number> | <string> | <array> | <object>
     <array> := "[" <sep>* sepBl( <expr> , <sep>+ , "allow" ) "]"
-    <object> := "[" <sep>* sepBl( <identifier> <sep>* ":" <sep>* <expr> , <sep>+ , "allow" ) "]" | "[" <sep>* ":" <sep>* "]"
+    <object> := "[" <sep>* sepBl( ( <identifier> | <string>) <sep>* ":" <sep>* <expr> , <sep>+ , "allow" ) "]" | "[" <sep>* ":" <sep>* "]"
+    <string> := "\"" <char>* "\""
+        <char> := <escape> / <letter>
+            <escape> := "\\0" | "\\b" | "\\f" | "\\n" | "\\r" | "\\t" | "\\v" | "\\'" | "\\\"" | "\\\\" | <unicode>
+                <unicode> := "\\u" <digit16>[4]
+            <letter> := /^[^\""\0]$/
     <bool> := <true> | <false>
         <true> := "true"
         <false> := "false"
@@ -27,10 +32,5 @@
             <digit> := /^[0-9]$/
             <digit2> := /^(0|1)$/
             <digit16> := /^(0-9a-fA-F)$/
-    <string> := "\"" <char>* "\""
-        <char> := <escape> / <letter>
-            <escape> := "\\0" | "\\b" | "\\f" | "\\n" | "\\r" | "\\t" | "\\v" | "\\'" | "\\\"" | "\\\\" | <unicode>
-                <unicode> := "\\u" <digit16>[4]
-            <letter> := /^[^\""\0]$/
 
 <sep> := " " | "\n"

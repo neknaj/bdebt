@@ -22,6 +22,10 @@ console.log("-Test--");
         // number
         test("+12.5")
         test("+0b1011")
+        // string
+        test(`""`)
+        test(`"hello world"`)
+        test(`"\\"Hello World!\\""`)
         // array
         test("[]")
         test("[ ]")

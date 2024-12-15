@@ -28,12 +28,15 @@ initlayout(
     document.querySelector("#layoutroot"),
     ["h",[1,5],[
         ["c","luna"],
-        ["v",[1,4],[["c","editor"],["c","result"]]]
+        ["v",[1,4],[["c","editor"],
+        ["h",[1,1],[["c","result1"],["c","result2"]]]
+    ]]
     ]],
     {
         luna: ()=>{return elm("div",{id:"console-container",class:"luna-console-theme-dark"},[])},
         editor: ()=>{return elm("textarea",{id:"input"},[])},
-        result: ()=>{return elm("div",{id:"result"},[])},
+        result1: ()=>{return elm("div",{id:"result1",class:"result"},[])},
+        result2: ()=>{return elm("div",{id:"result2",class:"result"},[])},
     }
 )
 const Console = new LunaConsole(document.getElementById('console-container'))
@@ -60,8 +63,8 @@ import { } from "./dist/test.js";
             codeElement.textContent = code;
 
             codeBlock.appendChild(codeElement);
-            document.getElementById('result').innerHTML = "";
-            document.getElementById('result').Add(codeBlock);
+            document.getElementById('result1').innerHTML = "";
+            document.getElementById('result1').Add(codeBlock);
 
             hljs.highlightElement(codeElement);
     }
@@ -80,7 +83,7 @@ document.querySelector("#input").value = sampleCode;
     :root {
         color-scheme: dark;
         background-color: black;
-        user-select: none;
+        /* user-select: none; */
     }
     body {
         margin: 0;
@@ -115,7 +118,7 @@ document.querySelector("#input").value = sampleCode;
         background-color: rgba(0, 0, 0, 0.0);
         resize: none;
     }
-    #result {
+    .result {
         height: 100%;
         overflow: auto;
     }

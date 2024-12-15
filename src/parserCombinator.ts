@@ -305,14 +305,14 @@ const node = <T>(label:string,parser: Parser<T>): Parser<ParsedTree> => (state: 
     };
 }
 
-const eraseEmptyLabel = (parser: Parser<ParsedTree[]>): Parser<ParsedTree[]> => (state: InputState) => {
+const filter = (parser: Parser<ParsedTree[]>,label: string = ""): Parser<ParsedTree[]> => (state: InputState) => {
     const result = parser(state);
     if (result.success) {
         if (Array.isArray(result.result)) {
             return {
                 success: true,
                 rest: result.rest,
-                result: result.result.filter(x=>x.label!=""),
+                result: result.result.filter(x=>x.label!=label),
             };
         }
         else {
@@ -365,4 +365,4 @@ const Rec = <T>(parserFactory: () => Parser<T>): Parser<T> => {
 };
 
 
-export {InputState,ParseResult,MemoCache,Parser,Input,sequence,choice,many,many1,sepBy,optional,eof,char,string,reg,proc,join,ParsedTree,node,eraseEmptyLabel, memoize, Rec}
+export {InputState,ParseResult,MemoCache,Parser,Input,sequence,choice,many,many1,sepBy,optional,eof,char,string,reg,proc,join,ParsedTree,node,filter, memoize, Rec}

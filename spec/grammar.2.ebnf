@@ -1,0 +1,41 @@
+# parser1
+
+                    <digit16> := /^(0-9a-fA-F)$/
+                    <digit2> := /^(0|1)$/
+                    <digit> := /^[0-9]$/
+                    <sign> := "+" | "-"
+                <int16> := <sign>? "0x" <digit16>+
+                <int2> := <sign>? "0b" <digit2>+
+                <int> := <sign>? <digit>+
+                <float> := <sign>? <digit>+ "." <digit>*
+            <number> := <int2> | <int16> | <float> | <int>
+                <false> := "false"
+                <true> := "true"
+            <bool> := <true> | <false>
+                    <letter> := /^[^\""\0]$/
+                        <unicode> := "\\u" <digit16>[4]
+                    <escape> := "\\0" | "\\b" | "\\f" | "\\n" | "\\r" | "\\t" | "\\v" | "\\'" | "\\\"" | "\\\\" | <unicode>
+                <char> := <escape> / <letter>
+            <string> := "\"" <char>* "\""
+        <literal> := <bool> | <number> | <string>
+        <sep> := " " | "\n"
+        <symbol> := "." | ":"
+        <identifier> := /^([a-zA-Zぁ-んァ-ン一-龯][a-zA-Z0-9_$ぁ-んァ-ン一-龯]*)$/
+        <paren> := "(" <tokens> ")" | "{" <tokens> "}" | "[" <tokens> "]"
+    <token> := <sep> | <symbol> | <literal> | <identifier> | <paren>
+<tokens> := <token>*
+
+
+# parser2
+
+    <object> := "[" <sep>* sepBl( ( <identifier> | <string>) <sep>* ":" <sep>* <expr> , <sep>+ , "allow" ) "]" | "[" <sep>* ":" <sep>* "]"
+    <array> := "[" <sep>* sepBl( <expr> , <sep>+ , "allow" ) "]"
+
+<expr> := <literal> | <funcCall> | <variable> | <parenExpr> | <binOperator> | <prop>
+    <parenExpr> := "{" <expr>* "}" | "(" <expr>* ")"
+    <prop> : = "." <expr>
+    <binOperator> := "+" | "-" | "*" | "+"
+    <funcCall> := <funcCallPN> | <funcCallRPN>
+        <funcCallPN>  := "(:" <expr> <expr>* ")" | "(" <expr> ":" <expr>* ")"
+        <funcCallRPN> := "(:" <expr> <expr> ")" | "(" <expr> ":" <expr> ")"
+    <variable> := <identifier>

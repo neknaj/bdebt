@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title></title>
+        <script src="https://cdn.jsdelivr.net/gh/neknaj/cDom/cdom.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/neknaj/webSplitLayout/type1/layout.js"></script>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/neknaj/webSplitLayout/type1/layout.css"></head>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luna-object-viewer/luna-object-viewer.css" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luna-data-grid/luna-data-grid.css" />
+        <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/luna-console/luna-console.css" />
+        <script src="https://cdn.jsdelivr.net/npm/luna-object-viewer/luna-object-viewer.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/luna-data-grid/luna-data-grid.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/luna-console/luna-console.js"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    </head>
+    <body>
+        <div id="background"><img src="spec/logo/npl-all2.png"></img></div>
+        <div id="layoutroot"></div>
+    </body>
+</html>
+<script>
+
+
+initlayout(
+    document.querySelector("#layoutroot"),
+    ["h",[1,5],[
+        ["c","luna"],
+        ["v",[1,4],[["c","editor"],
+        ["h",[1,1],[["c","result1"],["c","result2"]]]
+    ]]
+    ]],
+    {
+        luna: ()=>{return elm("div",{id:"console-container",class:"luna-console-theme-dark"},[])},
+        editor: ()=>{return elm("textarea",{id:"input"},[])},
+        result1: ()=>{return elm("div",{id:"result1",class:"result"},[])},
+        result2: ()=>{return elm("div",{id:"result2",class:"result"},[])},
+    }
+)
+const Console = new LunaConsole(document.getElementById('console-container'))
+
+console.log = (...args)=>{Console.log(...args.map(x=>typeof x=="string"?x.replace(/\x1b\[\d\d?m/g,''):x))}
+console.info = (...args)=>{Console.info(...args.map(x=>typeof x=="string"?x.replace(/\x1b\[\d\d?m/g,''):x))}
+console.warn = (...args)=>{Console.warn(...args.map(x=>typeof x=="string"?x.replace(/\x1b\[\d\d?m/g,''):x))}
+console.table = (...args)=>{Console.table(...args)};
+
+</script>
+<script type="module">
+import { Input } from "./dist/parserCombinator.js";
+import { parserGenerator } from "./dist/parser.js";
+import { } from "./dist/test.js";
+
+    function run() {
+        let input = document.querySelector("#input").value;
+        let res = parserGenerator()(Input(input));
+        let code = JSON.stringify(res,null,2);
+
+            const codeBlock = document.createElement('pre');
+            const codeElement = document.createElement('code');
+            codeElement.className = 'language-json';
+            codeElement.textContent = code;
+
+            codeBlock.appendChild(codeElement);
+            document.getElementById('result1').innerHTML = "";
+            document.getElementById('result1').Add(codeBlock);
+
+            hljs.highlightElement(codeElement);
+    }
+
+const sampleCode = `(:add
+    (sub: 1 2)
+    (mul: 2 3)
+)`
+document.querySelector("#input").value = sampleCode;
+
+    document.querySelector("#input").Listen("input",run)
+    run();
+</script>
+<script type="module" src="dist/parser.js"></script>
+<style>
+    :root {
+        color-scheme: dark;
+        background-color: black;
+        /* user-select: none; */
+    }
+    body {
+        margin: 0;
+        padding: 0;
+        height: 100dvh;
+        width: 100dvw;
+        overflow: hidden;
+    }
+    .luna-console.luna-console-theme-dark, .hljs {
+        background-color: rgba(0, 0, 0, 0);
+    }
+    #background {
+        z-index: -1;
+        position: absolute;
+        top: 0;
+        left: 0;
+        opacity: 5%;
+        & img {
+            user-select: none;
+            width: 100dvw;
+            height: 100dvh;
+        }
+    }
+    #layoutroot {
+        height: 100%;
+        width: 100%;
+    }
+    #input {
+        height: 100%;
+        width: 100%;
+        border: 0;
+        background-color: rgba(0, 0, 0, 0.0);
+        resize: none;
+    }
+    .result {
+        height: 100%;
+        overflow: auto;
+    }
+</style>
